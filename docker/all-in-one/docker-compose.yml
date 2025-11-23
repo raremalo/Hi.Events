@@ -2,7 +2,7 @@ version: '3.8'
 services:
   all-in-one:
     build:
-      context: ../../
+      context: .
       dockerfile: Dockerfile.all-in-one
     container_name: all-in-one
     restart: always
