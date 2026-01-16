@@ -45,6 +45,8 @@ services:
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
       - WEBHOOK_QUEUE_NAME=webhook-queue
+    volumes:
+      - hievents_storage:/var/www/html/storage/app/public
     networks:
       - coolify
     depends_on:
@@ -70,5 +72,7 @@ networks:
 
 volumes:
   redisdata:
+    driver: local
+  hievents_storage:
     driver: local
 
