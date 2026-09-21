@@ -18,6 +18,7 @@ use HiEvents\DomainObjects\QuestionDomainObject;
 use HiEvents\DomainObjects\Status\EventStatus;
 use HiEvents\DomainObjects\TaxAndFeesDomainObject;
 use HiEvents\DomainObjects\WebhookDomainObject;
+use HiEvents\Helper\StringHelper;
 use HiEvents\Repository\Eloquent\Value\Relationship;
 use HiEvents\Repository\Interfaces\AffiliateRepositoryInterface;
 use HiEvents\Repository\Interfaces\EventRepositoryInterface;
@@ -81,7 +82,7 @@ class DuplicateEventService
             $event = $this->getEventWithRelations($eventId, $accountId);
 
             $event
-                ->setTitle($title)
+                ->setTitle(StringHelper::stripControlCharacters($title))
                 ->setStartDate($startDate)
                 ->setEndDate($endDate)
                 ->setDescription($this->purifier->purify($description))
@@ -249,6 +250,7 @@ class DuplicateEventService
                 $this->createQuestionService->createQuestion(
                     (new QuestionDomainObject())
                         ->setTitle($question->getTitle())
+                        ->setDescription($question->getDescription())
                         ->setEventId($newEventId)
                         ->setBelongsTo($question->getBelongsTo())
                         ->setType($question->getType())

@@ -6,11 +6,10 @@ namespace HiEvents\Repository\Interfaces;
 
 use HiEvents\DomainObjects\EventDomainObject;
 use HiEvents\Http\DTO\QueryParamsDTO;
-use HiEvents\Repository\Eloquent\BaseRepository;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
- * @extends BaseRepository<EventDomainObject>
+ * @extends RepositoryInterface<EventDomainObject>
  */
 interface EventRepositoryInterface extends RepositoryInterface
 {
@@ -26,4 +25,8 @@ interface EventRepositoryInterface extends RepositoryInterface
         ?string $sortBy = 'start_date',
         ?string $sortDirection = 'desc'
     ): LengthAwarePaginator;
+
+    public function getSitemapEvents(int $page, int $perPage): LengthAwarePaginator;
+
+    public function getSitemapEventCount(): int;
 }

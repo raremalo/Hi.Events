@@ -2,6 +2,7 @@ import {ActionIcon, Anchor, Avatar, Button, Group, Popover, Tooltip} from '@mant
 import {Attendee, IdParam, MessageType} from "../../../types.ts";
 import {
     IconCheck,
+    IconClock,
     IconClipboardList,
     IconCopy,
     IconMailForward,
@@ -9,7 +10,8 @@ import {
     IconPlus,
     IconSend,
     IconTrash,
-    IconUserCog
+    IconUserCog,
+    IconX
 } from "@tabler/icons-react";
 import {getInitials, getProductFromEvent} from "../../../utilites/helpers.ts";
 import {useClipboard, useDisclosure} from "@mantine/hooks";
@@ -29,7 +31,6 @@ import {useResendAttendeeTicket} from "../../../mutations/useResendAttendeeTicke
 import {ManageAttendeeModal} from "../../modals/ManageAttendeeModal";
 import {ManageOrderModal} from "../../modals/ManageOrderModal";
 import {ActionMenu} from '../ActionMenu';
-import {AttendeeStatusBadge} from "../AttendeeStatusBadge";
 import {CheckInStatusModal} from "../CheckInStatusModal";
 import {prettyDate} from "../../../utilites/dates.ts";
 import {TanStackTable, TanStackTableColumn} from "../TanStackTable";
@@ -74,26 +75,6 @@ export const AttendeeTable = ({attendees, openCreateModal}: AttendeeTableProps) 
             onSuccess: () => showSuccess(t`Ticket email has been resent to attendee`),
             onError: (error: any) => showError(error.response.data.message || t`Failed to resend ticket email`)
         });
-    }
-
-    if (attendees.length === 0) {
-        return <NoResultsSplash
-            heading={t`No Attendees to show`}
-            imageHref={'/blank-slate/attendees.svg'}
-            subHeading={(
-                <>
-                    <p>
-                        {t`Your attendees will appear here once they have registered for your event. You can also manually add attendees.`}
-                    </p>
-                    <Button
-                        size={'xs'}
-                        leftSection={<IconPlus/>}
-                        color={'green'}
-                        onClick={() => openCreateModal()}>{t`Manually add an Attendee`}
-                    </Button>
-                </>
-            )}
-        />
     }
 
     const handleCancel = (attendee: Attendee) => {
@@ -292,7 +273,31 @@ export const AttendeeTable = ({attendees, openCreateModal}: AttendeeTableProps) 
                     id: 'status',
                     header: t`Status`,
                     enableHiding: true,
-                    cell: (info: CellContext<Attendee, unknown>) => <AttendeeStatusBadge attendee={info.row.original}/>,
+                    cell: (info: CellContext<Attendee, unknown>) => {
+                        const attendee = info.row.original;
+                        return (
+                            <div className={classes.statusBadge} data-status={attendee.status}>
+                                {attendee.status === 'ACTIVE' && (
+                                    <>
+                                        <IconCheck size={14}/>
+                                        {t`Active`}
+                                    </>
+                                )}
+                                {attendee.status === 'AWAITING_PAYMENT' && (
+                                    <>
+                                        <IconClock size={14}/>
+                                        {t`Awaiting Payment`}
+                                    </>
+                                )}
+                                {attendee.status === 'CANCELLED' && (
+                                    <>
+                                        <IconX size={14}/>
+                                        {t`Cancelled`}
+                                    </>
+                                )}
+                            </div>
+                        );
+                    },
                     meta: {
                         headerStyle: {minWidth: 120},
                     },
@@ -388,6 +393,26 @@ export const AttendeeTable = ({attendees, openCreateModal}: AttendeeTableProps) 
         },
         [emailPopoverId, event, hasCheckInLists]
     );
+
+    if (attendees.length === 0) {
+        return <NoResultsSplash
+            heading={t`No Attendees to show`}
+            imageHref={'/blank-slate/attendees.svg'}
+            subHeading={(
+                <>
+                    <p>
+                        {t`Your attendees will appear here once they have registered for your event. You can also manually add attendees.`}
+                    </p>
+                    <Button
+                        size={'xs'}
+                        leftSection={<IconPlus/>}
+                        color={'green'}
+                        onClick={() => openCreateModal()}>{t`Manually add an Attendee`}
+                    </Button>
+                </>
+            )}
+        />
+    }
 
     return (
         <>

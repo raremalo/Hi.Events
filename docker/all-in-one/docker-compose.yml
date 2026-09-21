@@ -4,8 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.all-in-one
-    container_name: all-in-one
-    restart: always
+    restart: unless-stopped
     ports:
       - "8123:80"
     environment:
@@ -13,6 +12,7 @@ services:
       - VITE_FRONTEND_URL=${VITE_FRONTEND_URL}
       - VITE_API_URL_CLIENT=${VITE_API_URL_CLIENT}
       - VITE_API_URL_SERVER=${VITE_API_URL_SERVER}
+      - VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY}
       - VITE_APP_NAME=${VITE_APP_NAME}
       - LOG_CHANNEL=${LOG_CHANNEL:-stack}
       - QUEUE_CONNECTION=${QUEUE_CONNECTION:-redis}
@@ -34,6 +34,8 @@ services:
       - MAIL_USERNAME=${MAIL_USERNAME}
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - MAIL_ENCRYPTION=${MAIL_ENCRYPTION}
+      - MAIL_AUTO_TLS=${MAIL_AUTO_TLS}
+      - MAIL_VERIFY_PEER=${MAIL_VERIFY_PEER}
       - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME}
       - FILESYSTEM_PUBLIC_DISK=${FILESYSTEM_PUBLIC_DISK:-local}
@@ -55,8 +57,8 @@ services:
         condition: service_healthy
 
   redis:
-    image: redis:latest
-    container_name: redis
+    image: redis:7-alpine
+    restart: unless-stopped
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -78,4 +80,3 @@ volumes:
     driver: local
   hievents_storage:
     driver: local
-

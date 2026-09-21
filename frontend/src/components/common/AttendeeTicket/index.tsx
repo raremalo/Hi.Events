@@ -3,8 +3,9 @@ import {Button, CopyButton} from "@mantine/core";
 import {formatCurrency} from "../../../utilites/currency.ts";
 import {t} from "@lingui/macro";
 import {prettyDate} from "../../../utilites/dates.ts";
+import {EventDateRange} from "../EventDateRange";
 import QRCode from "react-qr-code";
-import {IconCopy, IconPrinter} from "@tabler/icons-react";
+import {IconCopy, IconPrinter, IconLock, IconX} from "@tabler/icons-react";
 import {Address, Attendee, Event, Product} from "../../../types.ts";
 import classes from './AttendeeTicket.module.scss';
 import {imageUrl} from "../../../utilites/urlHelper.ts";
@@ -32,6 +33,7 @@ export const AttendeeTicket = ({
     const ticketDesignSettings = event?.settings?.ticket_design_settings;
     const accentColor = ticketDesignSettings?.accent_color || '#6B46C1';
     const footerText = ticketDesignSettings?.footer_text;
+    const dateDisplayMode = ticketDesignSettings?.date_display_mode || 'START_DATE_TIME';
     const logoUrl = imageUrl('TICKET_LOGO', event?.images);
 
     const ticketStyle = {
@@ -40,6 +42,19 @@ export const AttendeeTicket = ({
 
     const isCancelled = attendee.status === 'CANCELLED';
     const isAwaitingPayment = attendee.status === 'AWAITING_PAYMENT';
+
+    // Generate a deterministic pattern based on attendee ID for consistency
+    const generateQrPattern = () => {
+        const seed = attendee.public_id || 'default';
+        const pattern = [];
+        for (let i = 0; i < 64; i++) {
+            const charCode = seed.charCodeAt(i % seed.length);
+            pattern.push((charCode + i) % 2 === 0);
+        }
+        return pattern;
+    };
+
+    const qrPattern = generateQrPattern();
 
     return (
         <div className={classes.ticket} style={ticketStyle}>
@@ -58,12 +73,16 @@ export const AttendeeTicket = ({
                 <div className={classes.contentLeft}>
                     {/* Event Details */}
                     <div className={classes.eventDetails}>
-                        <div className={classes.detailRow}>
-                            <div className={classes.detailLabel}>{t`Date & Time`}</div>
-                            <div className={classes.detailValue}>
-                                {prettyDate(event.start_date, event.timezone, true)}
+                        {dateDisplayMode !== 'HIDDEN' && (
+                            <div className={classes.detailRow}>
+                                <div className={classes.detailLabel}>{t`Date & Time`}</div>
+                                <div className={classes.detailValue}>
+                                    {dateDisplayMode === 'DATE_RANGE'
+                                        ? <EventDateRange event={event}/>
+                                        : prettyDate(event.start_date, event.timezone, true)}
+                                </div>
                             </div>
-                        </div>
+                        )}
                         {event?.organizer?.name && (
                             <div className={classes.detailRow}>
                                 <div className={classes.detailLabel}>{t`Organizer`}</div>
@@ -110,25 +129,46 @@ export const AttendeeTicket = ({
                             </div>
                         )}
 
-                        <div
-                            className={classes.qrContainer}
-                            style={{borderColor: accentColor}}
-                        >
-                            {(isCancelled || isAwaitingPayment) ? (
-                                <div className={classes.statusOverlay}>
-                                    <span className={isCancelled ? classes.cancelled : classes.pending}>
-                                        {isCancelled ? t`Cancelled` : t`Awaiting Payment`}
+                        {/* QR Code or Status Placeholder */}
+                        {(isCancelled || isAwaitingPayment) ? (
+                            <div className={`${classes.qrPlaceholder} ${isCancelled ? classes.qrPlaceholderCancelled : classes.qrPlaceholderPending}`}>
+                                {/* Faded QR Pattern Background */}
+                                <div className={classes.qrPatternBackground}>
+                                    {qrPattern.map((filled, i) => (
+                                        <div
+                                            key={i}
+                                            className={`${classes.qrPatternCell} ${filled ? classes.qrPatternCellFilled : ''}`}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* Status Content Overlay */}
+                                <div className={classes.qrPlaceholderContent}>
+                                    <div className={`${classes.statusIconCircle} ${isCancelled ? classes.statusIconCancelled : classes.statusIconPending}`}>
+                                        {isCancelled ? (
+                                            <IconX size={20} stroke={2} color="white" />
+                                        ) : (
+                                            <IconLock size={20} stroke={2} color="white" />
+                                        )}
+                                    </div>
+                                    <span className={`${classes.statusText} ${isCancelled ? classes.statusTextCancelled : classes.statusTextPending}`}>
+                                        {isCancelled ? t`Cancelled` : t`Pay to unlock`}
                                     </span>
                                 </div>
-                            ) : (
+                            </div>
+                        ) : (
+                            <div
+                                className={classes.qrContainer}
+                                style={{borderColor: accentColor}}
+                            >
                                 <QRCode
                                     value={String(attendee.public_id)}
                                     size={180}
                                     level="M"
                                     style={{height: "auto", maxWidth: "100%", width: "100%"}}
                                 />
-                            )}
-                        </div>
+                            </div>
+                        )}
 
                         <div className={classes.ticketId}>
                             <div className={classes.detailLabel}>{t`Ticket ID`}</div>
@@ -159,7 +199,7 @@ export const AttendeeTicket = ({
                                     onClick={() => window?.open(`/product/${event.id}/${attendee.short_id}/print`, '_blank')}
                                     leftSection={<IconPrinter size={16}/>}
                                 >
-                                    {t`Print`}
+                                    {t`Print to PDF`}
                                 </Button>
 
                                 <CopyButton

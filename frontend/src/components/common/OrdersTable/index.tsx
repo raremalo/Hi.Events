@@ -1,5 +1,5 @@
 import {t} from "@lingui/macro";
-import {Anchor, Button, Group, Menu, Popover, Text} from '@mantine/core';
+import {Anchor, Button, Group, Menu, Popover, Text, Tooltip} from '@mantine/core';
 import {Event, IdParam, Invoice, MessageType, Order} from "../../../types.ts";
 import {
     IconAlertCircle,
@@ -10,7 +10,6 @@ import {
     IconClockPause,
     IconCopy,
     IconCreditCard,
-    IconCurrencyDollar,
     IconDotsVertical,
     IconFileInvoice,
     IconFileOff,
@@ -45,6 +44,7 @@ import {TanStackTable, TanStackTableColumn} from "../TanStackTable";
 import {ColumnVisibilityToggle} from "../ColumnVisibilityToggle";
 import {CellContext} from "@tanstack/react-table";
 import {formatCurrency} from "../../../utilites/currency.ts";
+import {eventCheckoutUrl} from "../../../utilites/urlHelper.ts";
 
 interface OrdersTableProps {
     event: Event,
@@ -67,18 +67,6 @@ export const OrdersTable = ({orders, event}: OrdersTableProps) => {
         setOrderId(orderId);
         viewModal.open();
     }));
-
-    if (orders.length === 0) {
-        return <NoResultsSplash
-            imageHref={'/blank-slate/orders.svg'}
-            heading={t`No orders to show`}
-            subHeading={(
-                <p>
-                    {t`Your orders will appear here once they start rolling in.`}
-                </p>
-            )}
-        />
-    }
 
     const handleModalClick = (orderId: IdParam, modal: { open: () => void }) => {
         setOrderId(orderId);
@@ -165,6 +153,12 @@ export const OrdersTable = ({orders, event}: OrdersTableProps) => {
                                    leftSection={<IconBasketCog size={14}/>}>{t`Manage order`}</Menu.Item>
                         <Menu.Item onClick={() => handleModalClick(order.id, messageModal)}
                                    leftSection={<IconSend size={14}/>}>{t`Message buyer`}</Menu.Item>
+                        <Menu.Item onClick={() => {
+                                       const url = eventCheckoutUrl(order.event_id, order.short_id, 'summary');
+                                       clipboard.copy(url);
+                                       showSuccess(t`Customer link copied to clipboard`);
+                                   }}
+                                   leftSection={<IconCopy size={14}/>}>{t`Copy customer link`}</Menu.Item>
 
                         {order.latest_invoice && (
                             <Menu.Item onClick={() => handleInvoiceDownload(order.latest_invoice as Invoice)}
@@ -329,12 +323,23 @@ export const OrdersTable = ({orders, event}: OrdersTableProps) => {
                 enableHiding: true,
                 cell: (info: CellContext<Order, unknown>) => {
                     const order = info.row.original;
-                    const itemCount = order.order_items?.length || order.attendees?.length || 0;
+                    const totalQuantity = order.order_items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+                    const itemBreakdown = order.order_items?.map(item =>
+                        `${item.quantity}x ${item.item_name}`
+                    ).join('\n') || '';
+
                     return (
-                        <div className={classes.itemsBadge}>
-                            <IconTicket size={14}/>
-                            {formatNumber(itemCount)} {t`item(s)`}
-                        </div>
+                        <Tooltip
+                            label={itemBreakdown}
+                            multiline
+                            withArrow
+                            disabled={!itemBreakdown}
+                        >
+                            <div className={classes.itemsBadge}>
+                                <IconTicket size={14}/>
+                                {formatNumber(totalQuantity)} {t`item(s)`}
+                            </div>
+                        </Tooltip>
                     );
                 },
             },
@@ -353,10 +358,12 @@ export const OrdersTable = ({orders, event}: OrdersTableProps) => {
                                 {t`Tax`}: {formatCurrency(order.total_tax, order.currency)} •
                                 {' '}{t`Fees`}: {formatCurrency(order.total_fee, order.currency)}
                             </Text>
-                            {order.total_refunded > 0 && (
-                                <Text className={classes.refundedAmount}>
-                                    <IconCurrencyDollar size={12}/>
-                                    {t`Refunded`}: {formatCurrency(order.total_refunded, order.currency)}
+                            {order.refund_status && (
+                                <Text className={classes.refundedAmount} data-refund-status={order.refund_status}>
+                                    {order.refund_status === 'REFUNDED' && t`Refunded: ${formatCurrency(order.total_refunded, order.currency)}`}
+                                    {order.refund_status === 'PARTIALLY_REFUNDED' && t`Partially refunded: ${formatCurrency(order.total_refunded, order.currency)}`}
+                                    {order.refund_status === 'REFUND_PENDING' && t`Refund pending`}
+                                    {order.refund_status === 'REFUND_FAILED' && t`Refund failed`}
                                 </Text>
                             )}
                         </div>
@@ -452,6 +459,18 @@ export const OrdersTable = ({orders, event}: OrdersTableProps) => {
         ],
         [event.id, emailPopoverId]
     );
+
+    if (orders.length === 0) {
+        return <NoResultsSplash
+            imageHref={'/blank-slate/orders.svg'}
+            heading={t`No orders to show`}
+            subHeading={(
+                <p>
+                    {t`Your orders will appear here once they start rolling in.`}
+                </p>
+            )}
+        />
+    }
 
     return (
         <>

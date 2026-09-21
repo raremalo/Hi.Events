@@ -20,14 +20,16 @@ use HiEvents\Exceptions\UnauthorizedException;
 use HiEvents\Repository\Eloquent\Value\Relationship;
 use HiEvents\Repository\Interfaces\OrderRepositoryInterface;
 use HiEvents\Services\Application\Handlers\Order\DTO\GetOrderPublicDTO;
+use HiEvents\Services\Domain\Order\OfflinePaymentInstructionsRenderService;
 use HiEvents\Services\Infrastructure\Session\CheckoutSessionManagementService;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
 
 class GetOrderPublicHandler
 {
     public function __construct(
-        private readonly OrderRepositoryInterface         $orderRepository,
-        private readonly CheckoutSessionManagementService $sessionIdentifierService
+        private readonly OrderRepositoryInterface                $orderRepository,
+        private readonly CheckoutSessionManagementService        $sessionIdentifierService,
+        private readonly OfflinePaymentInstructionsRenderService $offlinePaymentInstructionsRenderService,
     )
     {
     }
@@ -41,8 +43,15 @@ class GetOrderPublicHandler
         }
 
         if ($order->getStatus() === OrderStatus::RESERVED->name) {
+            if ($order->getSessionId() === null) {
+                throw new UnauthorizedException(
+                    __('Sorry, we could not verify your session. Please restart your order.')
+                );
+            }
             $this->verifySessionId($order->getSessionId());
         }
+
+        $this->offlinePaymentInstructionsRenderService->renderForOrder($order);
 
         return $order;
     }

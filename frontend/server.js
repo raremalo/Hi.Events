@@ -11,6 +11,8 @@ import {fileURLToPath} from "node:url";
 import * as nodePath from "node:path";
 import * as nodeUrl from "node:url";
 import "dotenv/config";
+import {sitemapIndexHandler, sitemapEventsHandler, sitemapOrganizersHandler} from "./src/sitemap/proxy.js";
+import {htmlSafeJsonStringify} from "./src/utilites/safeScriptJson.js";
 
 installGlobals();
 
@@ -58,8 +60,24 @@ async function main() {
                 envVars[key] = process.env[key];
             }
         }
-        return JSON.stringify(envVars);
+        return htmlSafeJsonStringify(envVars);
     };
+
+    app.get('/robots.txt', (req, res) => {
+        const frontendUrl = process.env.VITE_FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+        const robotsTxt = `User-agent: *
+Allow: /
+
+Sitemap: ${frontendUrl}/sitemap.xml
+`;
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.status(200).send(robotsTxt);
+    });
+
+    app.get('/sitemap.xml', sitemapIndexHandler);
+    app.get('/sitemap-events-:page.xml', sitemapEventsHandler);
+    app.get('/sitemap-organizers-:page.xml', sitemapOrganizersHandler);
 
     app.use("*", async (req, res) => {
         const url = req.originalUrl.replace(base, "");
@@ -81,7 +99,7 @@ async function main() {
                 { req, res },
                 ssrManifest
             );
-            const stringifiedState = JSON.stringify(dehydratedState);
+            const stringifiedState = htmlSafeJsonStringify(dehydratedState);
 
             const helmetHtml = Object.values(helmetContext.helmet || {})
                 .map((value) => value.toString() || "")
@@ -97,11 +115,11 @@ async function main() {
             }
 
             const html = template
-                .replace("<!--head-snippets-->", headSnippets.join("\n"))
-                .replace("<!--app-html-->", appHtml)
-                .replace("<!--dehydrated-state-->", `<script>window.__REHYDRATED_STATE__ = ${stringifiedState}</script>`)
-                .replace("<!--environment-variables-->", envVariablesHtml)
-                .replace(/<!--render-helmet-->.*?<!--\/render-helmet-->/s, helmetHtml);
+                .replace("<!--head-snippets-->", () => headSnippets.join("\n"))
+                .replace("<!--app-html-->", () => appHtml)
+                .replace("<!--dehydrated-state-->", () => `<script>window.__REHYDRATED_STATE__ = ${stringifiedState}</script>`)
+                .replace("<!--environment-variables-->", () => envVariablesHtml)
+                .replace(/<!--render-helmet-->.*?<!--\/render-helmet-->/s, () => helmetHtml);
 
             res.setHeader("Content-Type", "text/html");
             return res.status(200).end(html);

@@ -36,6 +36,21 @@ export const LanguageSwitcher = () => {
                 return t`Vietnamese`;
             case "tr":
                 return t`Turkish`;
+            case "pl":
+                return t`Polish`;
+            case "se":
+                return t`Swedish`;
+            case "sk":
+                return t`Slovak`;
+            case "el":
+                return t`Greek`;
+            default:
+                // Defensive fallback: if a new locale is added to SupportedLocales
+                // but not handled here, return the locale code itself rather than
+                // undefined. An undefined label propagates into Mantine's Combobox
+                // `defaultOptionsFilter`, which calls `.toLowerCase()` on it and
+                // throws during SSR, 500-ing every auth page.
+                return locale;
         }
     };
 
@@ -52,12 +67,13 @@ export const LanguageSwitcher = () => {
                 }))}
                 defaultValue={getClientLocale()}
                 placeholder={t`English`}
-                onChange={(value) =>
-                    dynamicActivateLocale(value as string).then(() => {
-                        document.cookie = `locale=${value};path=/;max-age=31536000`;
-                        // this shouldn't be necessary, but it is due to the wide use of t`...` in the codebase
-                        window.location.reload();
-                    })}
+                onChange={(value) => {
+                    if (!value) return;
+                    document.cookie = `locale=${value};path=/;max-age=31536000`;
+                    dynamicActivateLocale(value).finally(() => {
+                        window.location.href = window.location.pathname + window.location.search;
+                    });
+                }}
             />
         </>
     )

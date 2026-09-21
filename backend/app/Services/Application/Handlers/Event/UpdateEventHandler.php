@@ -8,10 +8,13 @@ use HiEvents\Events\Dispatcher;
 use HiEvents\Events\EventUpdateEvent;
 use HiEvents\Exceptions\CannotChangeCurrencyException;
 use HiEvents\Helper\DateHelper;
+use HiEvents\Helper\StringHelper;
 use HiEvents\Repository\Interfaces\EventRepositoryInterface;
 use HiEvents\Repository\Interfaces\OrderRepositoryInterface;
 use HiEvents\Services\Application\Handlers\Event\DTO\UpdateEventDTO;
 use HiEvents\Services\Infrastructure\HtmlPurifier\HtmlPurifierService;
+use HiEvents\Jobs\Event\Webhook\DispatchEventWebhookJob;
+use HiEvents\Services\Infrastructure\DomainEvents\Enums\DomainEventType;
 use Illuminate\Database\DatabaseManager;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
 use Throwable;
@@ -69,7 +72,7 @@ readonly class UpdateEventHandler
 
         $this->eventRepository->updateWhere(
             attributes: [
-                'title' => $eventData->title,
+                'title' => StringHelper::stripControlCharacters($eventData->title),
                 'category' => $eventData->category?->value ?? $existingEvent->getCategory(),
                 'start_date' => DateHelper::convertToUTC($eventData->start_date, $eventData->timezone),
                 'end_date' => $eventData->end_date
@@ -96,6 +99,11 @@ readonly class UpdateEventHandler
         ]);
 
         $this->dispatcher->dispatchEvent(new EventUpdateEvent($event));
+
+        DispatchEventWebhookJob::dispatch(
+            $event->getId(),
+            DomainEventType::EVENT_UPDATED,
+        );
 
         return $event;
     }

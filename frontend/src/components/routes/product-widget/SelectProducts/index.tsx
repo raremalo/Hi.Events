@@ -36,6 +36,8 @@ import {promoCodeClientPublic} from "../../../../api/promo-code.client.ts";
 import {IconChevronRight, IconX} from "@tabler/icons-react"
 import {getSessionIdentifier} from "../../../../utilites/sessionIdentifier.ts";
 import {Constants} from "../../../../constants.ts";
+import {clearWaitlistJoinedForEvent} from "../../../../hooks/useWaitlistJoined.ts";
+import {CHECKOUT_PREFILL_PARAM_KEYS} from "../../../../hooks/useCheckoutPrefill.ts";
 
 const AFFILIATE_EXPIRY_DAYS = 30;
 
@@ -122,6 +124,15 @@ const SelectProducts = (props: SelectProductsProps) => {
     }, []);
 
     useEffect(() => {
+        if (typeof window === 'undefined' || !eventId) return;
+        const clearWaitlist = new URLSearchParams(window.location.search).get('clear_waitlist');
+        if (clearWaitlist === 'true') {
+            clearWaitlistJoinedForEvent(eventId);
+            removeQueryStringFromUrl('clear_waitlist');
+        }
+    }, [eventId]);
+
+    useEffect(() => {
         form.setFieldValue('affiliate_code', affiliateCode || null);
     }, [affiliateCode]);
 
@@ -140,16 +151,29 @@ const SelectProducts = (props: SelectProductsProps) => {
         onSuccess: (data) => queryClient.invalidateQueries()
             .then(() => {
                 const url = '/checkout/' + eventId + '/' + data.data.short_id + '/details';
+
+                // Forward checkout-prefill params (name/email/lock) from the event page
+                // to the details step, since this navigation would otherwise drop them.
+                const sourceParams = new URLSearchParams(window.location.search);
+                const prefillParams = new URLSearchParams();
+                CHECKOUT_PREFILL_PARAM_KEYS.forEach((key) => {
+                    const value = sourceParams.get(key);
+                    if (value !== null) {
+                        prefillParams.set(key, value);
+                    }
+                });
+                const prefillQuery = prefillParams.toString();
+
                 if (props.widgetMode === 'embedded') {
-                    window.open(
-                        url + '?session_identifier=' + data.data.session_identifier + '&utm_source=embedded_widget',
-                        '_blank'
-                    );
+                    const embeddedQuery = 'session_identifier=' + data.data.session_identifier
+                        + '&utm_source=embedded_widget'
+                        + (prefillQuery ? '&' + prefillQuery : '');
+                    window.open(url + '?' + embeddedQuery, '_blank');
                     setOrderInProcessOverlayVisible(true);
                     return;
                 }
 
-                return navigate(url);
+                return navigate(url + (prefillQuery ? '?' + prefillQuery : ''));
             }),
 
         onError: (error: any) => {
@@ -362,12 +386,13 @@ const SelectProducts = (props: SelectProductsProps) => {
                                 size="md"
                                 styles={{
                                     root: {
-                                        backgroundColor: props.colors?.secondary || '#228be6',
-                                        color: props.colors?.secondaryText || 'white',
+                                        backgroundColor: props.colors?.secondary || 'var(--primary-color, #228be6)',
+                                        color: props.colors?.secondaryText || 'var(--accent-contrast, white)',
                                         fontWeight: 600,
                                         marginBottom: '12px',
                                         '&:hover': {
-                                            backgroundColor: props.colors?.secondary || '#1c7ed6',
+                                            backgroundColor: props.colors?.secondary || 'var(--primary-color, #1c7ed6)',
+                                            filter: 'brightness(0.95)',
                                         }
                                     }
                                 }}
@@ -381,7 +406,7 @@ const SelectProducts = (props: SelectProductsProps) => {
                                 size={'sm'}
                                 styles={{
                                     root: {
-                                        color: props.colors?.primaryText || '#228be6',
+                                        color: props.colors?.primaryText || 'var(--primary-color, #228be6)',
                                         '&:hover': {
                                             backgroundColor: 'transparent',
                                             textDecoration: 'underline'
@@ -439,7 +464,12 @@ const SelectProducts = (props: SelectProductsProps) => {
                                             };
 
                                             return (
-                                                <div key={product.id} className={'hi-product-row'}>
+                                                <div key={product.id} className={`hi-product-row ${product.is_highlighted ? 'hi-product-highlighted' : ''}`}>
+                                                    {product.is_highlighted && product.highlight_message && (
+                                                        <div className={'hi-product-highlight-message'}>
+                                                            {product.highlight_message}
+                                                        </div>
+                                                    )}
                                                     <div className={'hi-title-row'}>
                                                         <UnstyledButton variant={'transparent'}
                                                                         className={'hi-product-title'}
