@@ -38,7 +38,7 @@ services:
       - FILESYSTEM_PUBLIC_DISK=${FILESYSTEM_PUBLIC_DISK:-local}
       - FILESYSTEM_PRIVATE_DISK=${FILESYSTEM_PRIVATE_DISK:-local}
       - DATABASE_URL=${DATABASE_URL}
-      - REDIS_HOST=redis
+      - REDIS_HOST=hievents-redis
       - REDIS_PASSWORD=
       - REDIS_PORT=6379
       - STRIPE_PUBLIC_KEY=${STRIPE_PUBLIC_KEY}
@@ -62,7 +62,9 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - coolify
+      coolify:
+        aliases:
+          - hievents-redis
     volumes:
       - redisdata:/data
 
