@@ -17,6 +17,7 @@ services:
       - LOG_CHANNEL=${LOG_CHANNEL:-stack}
       - QUEUE_CONNECTION=${QUEUE_CONNECTION:-redis}
       - APP_KEY=${APP_KEY}
+      - APP_DEBUG=false
       - APP_CDN_URL=${APP_CDN_URL}
       - APP_FRONTEND_URL=${APP_FRONTEND_URL}
       - JWT_SECRET=${JWT_SECRET}
